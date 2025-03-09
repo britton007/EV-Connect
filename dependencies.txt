@@ -1,0 +1,28 @@
+Dependencies:
+- @remix-run/node
+- @remix-run/react
+- @remix-run/serve
+- isbot
+- react
+- react-dom
+- ws
+
+DevDependencies:
+- @remix-run/dev
+- @types/react
+- @types/react-dom
+- @typescript-eslint/eslint-plugin
+- @typescript-eslint/parser
+- autoprefixer
+- concurrently
+- eslint
+- eslint-import-resolver-typescript
+- eslint-plugin-import
+- eslint-plugin-jsx-a11y
+- eslint-plugin-react
+- eslint-plugin-react-hooks
+- postcss
+- tailwindcss
+- typescript
+- vite
+- vite-tsconfig-paths

@@ -1,53 +1,91 @@
 import type { MetaFunction } from "@remix-run/node";
+import {
+  Form,
+  Link,
+  useNavigate,
+  useNavigation,
+  useActionData,
+} from "@remix-run/react";
+import { useState } from "react";
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "New Remix App" },
-    { name: "description", content: "Welcome to Remix!" },
+    { title: "EV Connect" },
+    { name: "description", content: "Welcome to EV Connect!" },
   ];
 };
 
 export default function Index() {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const navigate = useNavigate();
+  const navigation = useNavigation();
+  const isSubmitting = navigation.state === "submitting";
+
+  const handleSubmit = () => {
+    if (username === "britton007" && password === "1007Tamarac") {
+      navigate("/admin");
+    } else {
+      alert("Invalid credentials");
+    }
+  };
+
   return (
-    <div className="flex h-screen items-center justify-center">
-      <div className="flex flex-col items-center gap-16">
-        <header className="flex flex-col items-center gap-9">
-          <h1 className="leading text-2xl font-bold text-gray-800 dark:text-gray-100">
-            Welcome to <span className="sr-only">Remix</span>
-          </h1>
-          <div className="h-[144px] w-[434px]">
-            <img
-              src="/logo-light.png"
-              alt="Remix"
-              className="block w-full dark:hidden"
-            />
-            <img
-              src="/logo-dark.png"
-              alt="Remix"
-              className="hidden w-full dark:block"
+    <div className="flex h-screen items-center justify-center bg-gray-100 dark:bg-gray-900">
+      <div className="w-full max-w-md p-6 bg-white rounded-lg shadow-md dark:bg-gray-800">
+        <h1 className="text-2xl font-bold text-center text-gray-800 dark:text-gray-100 mb-6">
+          EV Connect
+        </h1>
+        <Form
+          method="post"
+          className="flex flex-col gap-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSubmit();
+          }}
+        >
+          <div>
+            <label
+              htmlFor="username"
+              className="block text-gray-700 dark:text-gray-200 text-sm font-bold mb-2"
+            >
+              Username
+            </label>
+            <input
+              type="text"
+              id="username"
+              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-300 leading-tight focus:outline-none focus:shadow-outline dark:bg-gray-700 dark:border-gray-600"
+              placeholder="Username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
             />
           </div>
-        </header>
-        <nav className="flex flex-col items-center justify-center gap-4 rounded-3xl border border-gray-200 p-6 dark:border-gray-700">
-          <p className="leading-6 text-gray-700 dark:text-gray-200">
-            What&apos;s next?
-          </p>
-          <ul>
-            {resources.map(({ href, text, icon }) => (
-              <li key={href}>
-                <a
-                  className="group flex items-center gap-3 self-stretch p-3 leading-normal text-blue-700 hover:underline dark:text-blue-500"
-                  href={href}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {icon}
-                  {text}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
+          <div>
+            <label
+              htmlFor="password"
+              className="block text-gray-700 dark:text-gray-200 text-sm font-bold mb-2"
+            >
+              Password
+            </label>
+            <input
+              type="password"
+              id="password"
+              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-300 leading-tight focus:outline-none focus:shadow-outline dark:bg-gray-700 dark:border-gray-600"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Logging in..." : "Log In"}
+          </button>
+        </Form>
       </div>
     </div>
   );
