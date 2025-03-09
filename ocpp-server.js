@@ -1,6 +1,6 @@
-const WebSocket = require('ws');
+import { WebSocketServer } from 'ws';
 
-const wss = new WebSocket.Server({ port: 9000 });
+const wss = new WebSocketServer({ port: 9000 });
 
 wss.on('connection', ws => {
   console.log('Charge point connected');
