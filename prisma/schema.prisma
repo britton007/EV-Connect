@@ -1,0 +1,29 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model ChargePoint {
+  id                  Int       @id @default(autoincrement())
+  name              String
+  address           String
+  phoneNumber       String
+  ocppServerAddress String
+  authorizationKey  String
+  username          String
+  password          String?
+  chargingSessions  ChargingSession[]
+}
+
+model ChargingSession {
+  id             Int      @id @default(autoincrement())
+  chargePointId  Int
+  startTime      DateTime
+  endTime        DateTime?
+  energyConsumed Float?
+  chargePoint    ChargePoint @relation(fields: [chargePointId], references: [id])
+}

@@ -1,6 +1,14 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "@remix-run/react";
+import {
+  getChargePoints,
+  createChargePoint as createChargePointDb,
+  updateChargePoint as updateChargePointDb,
+  deleteChargePoint as deleteChargePointDb,
+} from "../../database.server";
 
-function ChargePointManagement({ chargePoints, setChargePoints }) {
+function ChargePointManagement() {
+  const [chargePoints, setChargePoints] = useState([]);
   const [newChargePoint, setNewChargePoint] = useState({
     name: "",
     address: "",
@@ -23,7 +31,14 @@ function ChargePointManagement({ chargePoints, setChargePoints }) {
     // Determine the WSS address (assuming it's the same host but with wss protocol)
     const wssProtocol = protocol === "https:" ? "wss:" : "ws:";
     setWssAddress(`${wssProtocol}//${host}`);
+
+    loadChargePoints();
   }, []);
+
+  const loadChargePoints = async () => {
+    const chargePoints = await getChargePoints();
+    setChargePoints(chargePoints);
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -33,21 +48,39 @@ function ChargePointManagement({ chargePoints, setChargePoints }) {
     }));
   };
 
-  const handleCreateChargePoint = () => {
+  const handleCreateChargePoint = async () => {
     const newKey = Math.random().toString(36).substring(2, 15);
-    const chargePointWithKey = {
+    // Extract first name and last name from the charge point name
+    const nameParts = newChargePoint.name.split(" ");
+    let username = "";
+    if (nameParts.length >= 2) {
+      const firstName = nameParts[0].toLowerCase();
+      const lastName = nameParts[nameParts.length - 1].toLowerCase();
+      username = `${firstName}${lastName}`;
+    } else {
+      // If there's only one name, use it as the username
+      username = newChargePoint.name.toLowerCase();
+    }
+    const chargePointData = {
       ...newChargePoint,
       authorizationKey: newKey,
+      username: username, // Add username to charge point details
+      password: null, // Initially no password
     };
-    setChargePoints((prev) => [...prev, chargePointWithKey]);
-    setNewChargePoint({
-      name: "",
-      address: "",
-      phoneNumber: "",
-      ocppServerAddress: "",
-      authorizationKey: "",
-    });
-    setShowCreateForm(false);
+    const createdChargePoint = await createChargePointDb(chargePointData);
+    if (createdChargePoint) {
+      setChargePoints((prev) => [...prev, createdChargePoint]);
+      setNewChargePoint({
+        name: "",
+        address: "",
+        phoneNumber: "",
+        ocppServerAddress: "",
+        authorizationKey: "",
+      });
+      setShowCreateForm(false);
+    } else {
+      alert("Failed to create charge point.");
+    }
   };
 
   const handleEditChargePoint = (index) => {
@@ -55,24 +88,49 @@ function ChargePointManagement({ chargePoints, setChargePoints }) {
     setNewChargePoint(chargePoints[index]);
   };
 
-  const handleUpdateChargePoint = () => {
-    const updatedChargePoints = [...chargePoints];
-    updatedChargePoints[editingChargePointIndex] = newChargePoint;
-    setChargePoints(updatedChargePoints);
-    setEditingChargePointIndex(null);
-    setNewChargePoint({
-      name: "",
-      address: "",
-      phoneNumber: "",
-      ocppServerAddress: "",
-      authorizationKey: "",
-    });
+  const handleUpdateChargePoint = async () => {
+    const chargePointToUpdate = chargePoints[editingChargePointIndex];
+    if (!chargePointToUpdate) {
+      alert("Charge point not found for updating.");
+      return;
+    }
+
+    const updatedChargePoint = await updateChargePointDb(
+      chargePointToUpdate.id,
+      newChargePoint
+    );
+    if (updatedChargePoint) {
+      const updatedChargePoints = [...chargePoints];
+      updatedChargePoints[editingChargePointIndex] = updatedChargePoint;
+      setChargePoints(updatedChargePoints);
+      setEditingChargePointIndex(null);
+      setNewChargePoint({
+        name: "",
+        address: "",
+        phoneNumber: "",
+        ocppServerAddress: "",
+        authorizationKey: "",
+      });
+    } else {
+      alert("Failed to update charge point.");
+    }
   };
 
-  const handleDeleteChargePoint = (index) => {
-    const updatedChargePoints = [...chargePoints];
-    updatedChargePoints.splice(index, 1);
-    setChargePoints(updatedChargePoints);
+  const handleDeleteChargePoint = async (index) => {
+    const chargePointToDelete = chargePoints[index];
+    if (!chargePointToDelete) {
+      alert("Charge point not found for deletion.");
+      return;
+    }
+
+    const success = await deleteChargePointDb(chargePointToDelete.id);
+    if (success) {
+      const updatedChargePoints = [...chargePoints];
+      updatedChargePoints.splice(index, 1);
+      setChargePoints(updatedChargePoints);
+    } else {
+      alert("Failed to delete charge point.");
+    }
   };
 
   const handleChargePointSelect = (chargePoint) => {
@@ -228,6 +286,9 @@ function ChargePointManagement({ chargePoints, setChargePoints }) {
           <p className="text-gray-600 dark:text-gray-400">
             Authorization Key: {selectedChargePoint.authorizationKey}
           </p>
+          <p className="text-gray-600 dark:text-gray-400">
+            Username: {selectedChargePoint.username}
+          </p>
 
           <div className="flex justify-end gap-2 mt-4">
             <button
@@ -351,166 +412,15 @@ function Logs() {
   );
 }
 
-function Users() {
-  const [users, setUsers] = useState([]);
-  const [newUser, setNewUser] = useState({ name: "", email: "" });
-  const [editingUser, setEditingUser] = useState(null);
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewUser((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const addUser = () => {
-    setUsers((prev) => [...prev, newUser]);
-    setNewUser({ name: "", email: "" });
-  };
-
-  const startEdit = (user) => {
-    setEditingUser(user);
-  };
-
-  const updateUser = (updatedUser) => {
-    setUsers((prev) =>
-      prev.map((user) => (user === editingUser ? updatedUser : user))
-    );
-    setEditingUser(null);
-  };
-
-  const deleteUser = (userToDelete) => {
-    setUsers((prev) => prev.filter((user) => user !== userToDelete));
-  };
-
-  return (
-    <div>
-      <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4">
-        User Management
-      </h2>
-
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
-          Add New User
-        </h3>
-        <div className="flex flex-col gap-2">
-          <div>
-            <label className="block text-gray-700 dark:text-gray-200 text-sm font-bold mb-2">
-              Name:
-            </label>
-            <input
-              type="text"
-              name="name"
-              value={newUser.name}
-              onChange={handleInputChange}
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-300 leading-tight focus:outline-none focus:shadow-outline dark:bg-gray-700 dark:border-gray-600"
-            />
-          </div>
-          <div>
-            <label className="block text-gray-700 dark:text-gray-200 text-sm font-bold mb-2">
-              Email:
-            </label>
-            <input
-              type="email"
-              name="email"
-              value={newUser.email}
-              onChange={handleInputChange}
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-300 leading-tight focus:outline-none focus:shadow-outline dark:bg-gray-700 dark:border-gray-600"
-            />
-          </div>
-          <button
-            onClick={addUser}
-            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-          >
-            Add User
-          </button>
-        </div>
-      </div>
-
-      {users.length > 0 && (
-        <div>
-          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
-            Existing Users
-          </h3>
-          <ul>
-            {users.map((user) => (
-              <li key={user.name} className="border rounded p-4 mb-2 dark:border-gray-600">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
-                      {user.name}
-                    </h4>
-                    <p className="text-gray-600 dark:text-gray-400">
-                      {user.email}
-                    </p>
-                  </div>
-                  <div>
-                    <button
-                      onClick={() => startEdit(user)}
-                      className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline mb-2"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => deleteUser(user)}
-                      className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-                {editingUser === user && (
-                  <div className="mt-4">
-                    <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      Edit User
-                    </h3>
-                    <div className="flex flex-col gap-2">
-                      <div>
-                        <label className="block text-gray-700 dark:text-gray-200 text-sm font-bold mb-2">
-                          Name:
-                        </label>
-                        <input
-                          type="text"
-                          name="name"
-                          value={newUser.name}
-                          onChange={handleInputChange}
-                          className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-300 leading-tight focus:outline-none focus:shadow-outline dark:bg-gray-700 dark:border-gray-600"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-gray-700 dark:text-gray-200 text-sm font-bold mb-2">
-                          Email:
-                        </label>
-                        <input
-                          type="email"
-                          name="email"
-                          value={newUser.email}
-                          onChange={handleInputChange}
-                          className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-gray-300 leading-tight focus:outline-none focus:shadow-outline dark:bg-gray-700 dark:border-gray-600"
-                        />
-                      </div>
-                      <button
-                        onClick={() => updateUser(newUser)}
-                        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-                      >
-                        Save Changes
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function Admin() {
   const [activeTab, setActiveTab] = useState("chargePoints");
-  const [chargePoints, setChargePoints] = useState([]);
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    // Perform logout logic here, e.g., clear session, tokens, etc.
+    // For now, just navigate back to the index route.
+    navigate("/");
+  };
 
   return (
     <div className="flex h-screen items-center justify-center bg-gray-100 dark:bg-gray-900">
@@ -538,25 +448,17 @@ export default function Admin() {
           >
             Logs
           </button>
-          <button
-            onClick={() => setActiveTab("users")}
-            className={`py-2 px-4 rounded focus:outline-none ${activeTab === "users"
-              ? "bg-blue-500 text-white"
-              : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-              }`}
-          >
-            Users
-          </button>
         </nav>
 
-        {activeTab === "chargePoints" && (
-          <ChargePointManagement
-            chargePoints={chargePoints}
-            setChargePoints={setChargePoints}
-          />
-        )}
+        {activeTab === "chargePoints" && <ChargePointManagement />}
         {activeTab === "logs" && <Logs />}
-        {activeTab === "users" && <Users />}
+
+        <button
+          onClick={handleLogout}
+          className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline mt-4"
+        >
+          Logout
+        </button>
       </div>
     </div>
   );
